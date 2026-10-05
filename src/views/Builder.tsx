@@ -271,12 +271,15 @@ export default function Builder() {
   return (
     <div className="wrap builder">
       <div className="builder-main">
-        <h1>Build a collection</h1>
+        <div className="kicker">BONELAB / ADD MODS</div>
+        <h1>Expand your library.</h1>
+        <p className="page-description">Find your next mod. Keep everything in one place.</p>
 
         <form className="row" onSubmit={addRef}>
           <input
             className="input"
-            placeholder="Paste a mod.io / thunderstore / sigmabone link…"
+            aria-label="Mod or collection link"
+            placeholder="Paste a mod or collection link…"
             value={ref}
             onChange={(e) => setRef(e.target.value)}
             spellCheck={false}
@@ -291,6 +294,7 @@ export default function Builder() {
           <button
             className={src === 'm' ? 'on' : ''}
             onClick={() => setSrc('m')}
+            aria-pressed={src === 'm'}
           >
             SDK mods
             <span className="seg-sub">mod.io</span>
@@ -298,6 +302,7 @@ export default function Builder() {
           <button
             className={src === 't' ? 'on' : ''}
             onClick={() => setSrc('t')}
+            aria-pressed={src === 't'}
           >
             Code mods
             <span className="seg-sub">thunderstore</span>
@@ -306,6 +311,7 @@ export default function Builder() {
 
         <input
           className="input search"
+          aria-label={src === 'm' ? 'Search SDK mods' : 'Search code mods'}
           placeholder={
             src === 'm'
               ? 'Search mod.io for BONELAB mods…'
@@ -415,9 +421,10 @@ export default function Builder() {
       </div>
 
       <aside className="builder-side card">
-        <div className="kicker">Your collection</div>
+        <div className="draft-heading"><h2>Your selection</h2><span className="draft-count">{total}</span></div>
         <input
           className="input name"
+          aria-label="Collection name"
           placeholder="Collection name (optional)"
           value={draftName}
           onChange={(e) => setDraftName(e.target.value)}
@@ -485,7 +492,7 @@ export default function Builder() {
 
         <div className="side-foot">
           <span className="muted">{total} mods</span>
-          <button className="btn primary" onClick={copy} disabled={!total}>
+          <button className="btn ghost" onClick={copy} disabled={!total}>
             {copied ? 'Copied!' : 'Copy share link'}
           </button>
         </div>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useStore } from '../store';
 import { decodeCollection, type Collection } from '../lib/collection';
 import { fmtBytes, getMod, getModsByIds, type ModioMod } from '../lib/modio';
@@ -20,7 +20,7 @@ import {
   type ScanResult,
 } from '../lib/fs';
 import { statusFor, statusForPkg, type InstallStatus } from '../lib/match';
-import { ApiDown, connectAny, Pill, SourceTag, Thumb } from '../components';
+import { ApiDown, connectAny, Icon, Pill, SourceTag, Thumb } from '../components';
 
 type RowState = 'idle' | 'doing' | 'done' | 'fail' | 'downloaded';
 
@@ -39,7 +39,15 @@ interface TRow {
   folder?: string;
 }
 
-export default function CollectionView({ data }: { data: string }) {
+export default function CollectionView({
+  data, loadingCollection = false, collectionError = '', onRetry, emptyAction,
+}: {
+  data: string;
+  loadingCollection?: boolean;
+  collectionError?: string;
+  onRetry?: () => void;
+  emptyAction?: ReactNode;
+}) {
   const {
     apiKey,
     gameId,
@@ -76,7 +84,7 @@ export default function CollectionView({ data }: { data: string }) {
   /* load mod.io mods */
   useEffect(() => {
     if (!col || !gameId || !col.m.length) {
-      if (col) setMods([]);
+      if (col) setMods(col.m.length ? null : []);
       return;
     }
     let dead = false;
@@ -249,7 +257,7 @@ export default function CollectionView({ data }: { data: string }) {
   const connect = async (kind: FolderKind) => {
     setConnectBusy(kind);
     try {
-      await connectAny();
+      await connectAny(kind);
     } catch {
       /* cancelled */
     } finally {
@@ -288,41 +296,10 @@ export default function CollectionView({ data }: { data: string }) {
 
   /* sdk mods need the api; thunderstore-only collections don't */
   const needsApi = !col || col.m.length > 0;
-  if (!gameId && needsApi)
-    return (
-      <div className="wrap">
-        {keyError ? (
-          <ApiDown />
-        ) : (
-          <div className="list">
-            <div className="skel h1" />
-            {[0, 1, 2, 3].map((i) => (
-              <div className="skel row" key={i} />
-            ))}
-          </div>
-        )}
-      </div>
-    );
-
-  const loading = !col || mods === null || pkgs === null;
-  if (loading)
-    return (
-      <div className="wrap">
-        {loadErr ? (
-          <div className="card empty-state">
-            <h2>Couldn't load collection</h2>
-            <p className="err">{loadErr}</p>
-          </div>
-        ) : (
-          <div className="list">
-            <div className="skel h1" />
-            {[0, 1, 2, 3].map((i) => (
-              <div className="skel row" key={i} />
-            ))}
-          </div>
-        )}
-      </div>
-    );
+  const apiDown = !gameId && needsApi && !!keyError;
+  const loading = loadingCollection || !col || mods === null || pkgs === null || (!gameId && needsApi);
+  const error = collectionError || loadErr;
+  const ready = !loading && !error && !apiDown;
 
   const totalRows = mRows.length + tRows.length;
   const canInstallAll =
@@ -332,26 +309,42 @@ export default function CollectionView({ data }: { data: string }) {
     <div className="wrap collection">
       <div className="col-head">
         <div>
-          <div className="kicker">Collection</div>
-          <h1>{col!.n || 'Untitled collection'}</h1>
-          <p className="muted">
-            {mRows.length > 0 && `${mRows.length} sdk mods`}
-            {mRows.length > 0 && tRows.length > 0 && ' · '}
-            {tRows.length > 0 && `${tRows.length} code mods`}
-            {(sdkScan || codeScan) &&
-              ` · ${installedCount} installed · ${missingCount} missing`}
-            {missingBytes > 0 && ` · ${fmtBytes(missingBytes)} to download`}
-          </p>
+          <div className="kicker">BONELAB / COLLECTION</div>
+          <h1>{!col?.n || col.n === 'Shared collection' ? 'BONELAB mods' : col.n}</h1>
+          <p className="muted collection-intro">Your mods, together. Check your library and install what’s missing.</p>
         </div>
         <div className="col-actions">
           <button className="btn ghost" onClick={copyLink}>
-            {copied ? 'Copied!' : 'Copy link'}
+            <Icon name="link" /> {copied ? 'Copied!' : 'Copy link'}
           </button>
-          <button className="btn ghost" onClick={openInBuilder}>
-            Edit in builder
-          </button>
+          {col && !loadingCollection && !collectionError ? (
+            <button className="btn primary" onClick={openInBuilder}>
+              <Icon name="plus" /> Open builder
+            </button>
+          ) : (
+            <a className="btn primary" href="#/new"><Icon name="plus" /> Open builder</a>
+          )}
         </div>
       </div>
+
+      {error ? (
+        <div className="banner library-error" role="alert">
+          <span>{error}</span>
+          {onRetry && <button className="btn ghost sm" onClick={onRetry}>Retry</button>}
+        </div>
+      ) : apiDown ? <ApiDown /> : loading ? (
+        <div className="list library-loading" role="status" aria-label="Loading mods">
+          <p className="muted">Loading mods…</p>
+          {[0, 1, 2].map((i) => <div className="skel row" key={i} />)}
+        </div>
+      ) : null}
+
+      {ready && <dl className="collection-summary">
+        <div><dt>In collection</dt><dd>{totalRows}<span>{mRows.length} SDK · {tRows.length} code</span></dd></div>
+        <div><dt>Installed</dt><dd>{sdkScan || codeScan ? installedCount : '—'}<span>{sdkScan || codeScan ? 'Confirmed on this PC' : 'Connect folders to check'}</span></dd></div>
+        <div><dt>{sdkScan || codeScan ? 'Missing mods' : 'To check'}</dt><dd>{missingCount}<span>{sdkScan || codeScan ? 'Not found in linked folders' : 'Local library not scanned'}</span></dd></div>
+        <div><dt>Download size</dt><dd>{fmtBytes(missingBytes)}<span>{sdkScan || codeScan ? 'For missing mods' : 'Before checking your folders'}</span></dd></div>
+      </dl>}
 
       {!fsSupported() && (
         <div className="banner">
@@ -364,7 +357,7 @@ export default function CollectionView({ data }: { data: string }) {
       )}
 
       {/* -------- SDK mods -------- */}
-      {mRows.length > 0 && (
+      {ready && mRows.length > 0 && (
         <section className="group">
           <div className="group-head">
             <SourceTag src="m" />
@@ -457,7 +450,7 @@ export default function CollectionView({ data }: { data: string }) {
                           }}
                           title="Download zip to your Downloads folder"
                         >
-                          ↓ zip
+                          <Icon name="download" /> ZIP
                         </button>
                         {sdkScan && sdk && r.status === 'missing' && (
                           <button
@@ -496,7 +489,7 @@ export default function CollectionView({ data }: { data: string }) {
       )}
 
       {/* -------- code mods -------- */}
-      {tRows.length > 0 && (
+      {ready && tRows.length > 0 && (
         <section className="group">
           <div className="group-head">
             <SourceTag src="t" />
@@ -591,7 +584,7 @@ export default function CollectionView({ data }: { data: string }) {
                           onClick={() => manualDownloadTs(r.pkg)}
                           title="Download zip to your Downloads folder"
                         >
-                          ↓ zip
+                          <Icon name="download" /> ZIP
                         </button>
                         {codeScan && code && r.status === 'missing' && (
                           <button
@@ -639,13 +632,15 @@ export default function CollectionView({ data }: { data: string }) {
         </section>
       )}
 
-      {!totalRows && (
-        <div className="card empty-state">
-          <p className="muted">This collection is empty.</p>
-        </div>
+      {ready && !totalRows && (
+        <section className="card empty-state">
+          <h2>No mods yet</h2>
+          <p className="muted">Open the builder to add mods. Published mods appear here for everyone.</p>
+          {emptyAction}
+        </section>
       )}
 
-      {missingCount > 0 && (sdkScan || codeScan) && (
+      {ready && missingCount > 0 && (sdkScan || codeScan) && (
         <div className="footer-bar">
           <span>
             {missingCount} missing
@@ -658,11 +653,11 @@ export default function CollectionView({ data }: { data: string }) {
             onClick={installAll}
             disabled={installing || !canInstallAll}
           >
-            {installing ? 'Installing…' : `Install all missing (${missingCount})`}
+            <Icon name="download" /> {installing ? 'Installing…' : `Install all missing (${missingCount})`}
           </button>
         </div>
       )}
-      {!missingCount && totalRows > 0 && (sdkScan || codeScan) && (
+      {ready && !missingCount && totalRows > 0 && (sdkScan || codeScan) && (
         <div className="footer-bar done">
           <span className="ok">You have everything in this collection.</span>
         </div>

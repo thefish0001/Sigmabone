@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useStore } from './store';
 import { ModioError, probeServerKey, resolveGameId } from './lib/modio';
 import { loadHandle, scanSlot } from './lib/fs';
-import { FoldersMenu, Toasts } from './components';
+import { FolderGuide, FoldersMenu, Icon, Toasts } from './components';
 import Home from './views/Home';
 import Builder from './views/Builder';
 import CollectionView from './views/CollectionView';
@@ -37,6 +37,7 @@ function ApiChip() {
 
 export default function App() {
   const hash = useHash();
+  const [foldersReady, setFoldersReady] = useState(false);
   const { apiKey, gameId, setGameId, setKeyError, setKeyless, setSlot } =
     useStore();
 
@@ -95,6 +96,7 @@ export default function App() {
           /* stale handle */
         }
       }
+      if (!dead) setFoldersReady(true);
     })();
     return () => {
       dead = true;
@@ -109,11 +111,12 @@ export default function App() {
   return (
     <div className="app">
       <header className="top">
-        <a className="wordmark" href="#/">
-          SIGMA<span>BONE</span>
+        <a className="wordmark" href="#/" aria-label="Sigmabone collection">
+          <span className="brand-symbol"><Icon name="library" /></span>
+          <span className="brand-type">SIGMA<span>BONE</span><small>BONELAB MOD LIBRARY</small></span>
         </a>
-        <nav>
-          <a href="#/new">Add mods</a>
+        <nav aria-label="Main navigation">
+          <a className="nav-add" href="#/new" aria-current={hash === '#/new' || hash === '#new' ? 'page' : undefined}><Icon name="plus" /> Add mods</a>
           <ApiChip />
           <FoldersMenu />
         </nav>
@@ -121,7 +124,7 @@ export default function App() {
       <main>{view}</main>
       <footer className="foot">
         <span className="muted">
-          collections live entirely in the link · mods served by{' '}
+          Built for your next BONELAB session · mods from{' '}
           <a href="https://mod.io/g/bonelab" target="_blank" rel="noreferrer">
             mod.io
           </a>{' '}
@@ -135,6 +138,7 @@ export default function App() {
           </a>
         </span>
       </footer>
+      <FolderGuide ready={foldersReady} />
       <Toasts />
     </div>
   );

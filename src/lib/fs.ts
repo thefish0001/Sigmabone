@@ -82,12 +82,18 @@ export async function classifyFolder(dir: DirLike): Promise<Classified> {
   return { kind: 'sdk', mode: 'mods', dlls, dirs };
 }
 
-export async function pickFolder(): Promise<FolderSlot> {
+export async function pickFolder(kind?: FolderKind): Promise<FolderSlot> {
   const handle = (await (window as any).showDirectoryPicker({
     mode: 'readwrite',
   })) as DirLike;
   const c = await classifyFolder(handle);
-  const slot: FolderSlot = { kind: c.kind, handle, mode: c.mode };
+  if (kind === 'sdk' && (c.mode === 'root' || c.dlls > 0))
+    throw new Error('This looks like a game or code-mod folder. For SDK mods, choose the Mods folder inside AppData\\LocalLow\\Stress Level Zero\\BONELAB.');
+  const slot: FolderSlot = {
+    kind: kind ?? c.kind,
+    handle,
+    mode: kind === 'sdk' ? 'mods' : c.mode,
+  };
   await saveHandle(slot);
   return slot;
 }

@@ -4,7 +4,6 @@ import type { FolderKind, FolderSlot, ScanResult } from './lib/fs';
 const LS_KEY = 'sb.apiKey';
 const LS_DRAFT = 'sb.draft2';
 const LS_DRAFT_NAME = 'sb.draftName';
-const LS_GAME = 'sb.gameId';
 const LS_PROXY = 'sb.proxy';
 
 const envKey =
@@ -76,10 +75,7 @@ export const useStore = create<AppState>((set, get) => ({
   apiKey: localStorage.getItem(LS_KEY) ?? envKey,
   keyError: '',
   keyless: false,
-  gameId: (() => {
-    const v = Number(localStorage.getItem(LS_GAME));
-    return Number.isFinite(v) && v > 0 ? v : null;
-  })(),
+  gameId: null,
   proxy: localStorage.getItem(LS_PROXY) ?? '',
 
   sdk: null,
@@ -99,11 +95,7 @@ export const useStore = create<AppState>((set, get) => ({
   },
   setKeyError: (keyError) => set({ keyError }),
   setKeyless: (keyless) => set({ keyless }),
-  setGameId: (gameId) => {
-    if (gameId) localStorage.setItem(LS_GAME, String(gameId));
-    else localStorage.removeItem(LS_GAME);
-    set({ gameId });
-  },
+  setGameId: (gameId) => set({ gameId }),
   setProxy: (proxy) => {
     localStorage.setItem(LS_PROXY, proxy);
     set({ proxy });

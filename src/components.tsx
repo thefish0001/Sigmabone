@@ -11,9 +11,26 @@ import {
 } from './lib/fs';
 import type { InstallStatus } from './lib/match';
 
+const ICON_PATHS = {
+  library: 'M12 3 3 8v9l9 5 9-5V8L12 3Zm0 10 9-5M12 13 3 8m9 5v9M7.5 5.5l9 5',
+  folder: 'M3 7V5h6l2 2h10v12H3V7Z',
+  plus: 'M12 5v14M5 12h14',
+  download: 'M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5',
+  link: 'm10 13 4-4m-5 7-2 2a4 4 0 0 1-6-6l4-4a4 4 0 0 1 6 0m2 0 2-2a4 4 0 0 1 6 6l-4 4a4 4 0 0 1-6 0',
+  search: 'M21 21l-5-5M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z',
+};
+
+export function Icon({ name }: { name: keyof typeof ICON_PATHS }) {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={ICON_PATHS[name]} />
+    </svg>
+  );
+}
+
 /* Connect flow: pick a folder → classify it → store under the detected slot. */
-export async function connectAny(): Promise<FolderKind | null> {
-  const slot = await pickFolder();
+export async function connectAny(kind?: FolderKind): Promise<FolderKind | null> {
+  const slot = await pickFolder(kind);
   const { setSlot, toast } = useStore.getState();
   try {
     const scan = await scanSlot(slot);
@@ -64,13 +81,17 @@ function SlotRow({ kind }: { kind: FolderKind }) {
   const needsGesture = kind === 'sdk' ? sdkNeedsGesture : codeNeedsGesture;
   const meta = SLOT_META[kind];
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
 
   const onPick = async () => {
     setBusy(true);
+    setError('');
     try {
-      await connectAny();
-    } catch {
+      await connectAny(kind);
+    } catch (e) {
       /* cancelled */
+      if (!(e instanceof DOMException && e.name === 'AbortError'))
+        setError(e instanceof Error ? e.message : 'Could not connect folder');
     } finally {
       setBusy(false);
     }
@@ -78,8 +99,11 @@ function SlotRow({ kind }: { kind: FolderKind }) {
   const onReconnect = async () => {
     if (!slot) return;
     setBusy(true);
+    setError('');
     try {
       await reconnect(slot);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not reconnect folder');
     } finally {
       setBusy(false);
     }
@@ -91,8 +115,8 @@ function SlotRow({ kind }: { kind: FolderKind }) {
   };
 
   return (
-    <div className="slot">
-      <span className={`slot-ic ${kind}`}>{meta.icon}</span>
+    <div className={'slot' + (error ? ' slot-error' : '')}>
+      <span className={`slot-ic ${kind}`}><Icon name={kind === 'sdk' ? 'library' : 'folder'} /></span>
       <div className="slot-body">
         <div className="slot-title">
           {meta.title}
@@ -123,7 +147,54 @@ function SlotRow({ kind }: { kind: FolderKind }) {
           </button>
         )}
       </div>
+      {error && <p className="err slot-message" role="alert">{error}</p>}
     </div>
+  );
+}
+
+export function FolderGuide({ ready }: { ready: boolean }) {
+  const { sdkScan, codeScan } = useStore();
+  const [dismissed, setDismissed] = useState(false);
+  const dialog = useRef<HTMLDialogElement>(null);
+  const show = ready && !dismissed && (!sdkScan || !codeScan);
+
+  useEffect(() => {
+    const el = dialog.current;
+    if (!el) return;
+    if (show && !el.open) el.showModal();
+    else if (!show && el.open) el.close();
+    if (!show) return;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = overflow; };
+  }, [show]);
+
+  return (
+    <dialog ref={dialog} className="folder-guide" aria-labelledby="folder-guide-title" aria-describedby="folder-guide-description" onClose={() => setDismissed(true)}>
+      <button className="x guide-close" aria-label="Close folder guide" onClick={() => dialog.current?.close()} autoFocus>×</button>
+      <div className="kicker">RECOMMENDED SETUP</div>
+      <h2 id="folder-guide-title">Connect your mod folders.</h2>
+      <p id="folder-guide-description" className="muted">See what’s already installed and put missing mods in the right place. BONELAB uses two different folders.</p>
+      <section className="guide-location" aria-label="SDK folder location">
+        <h3><Icon name="library" /> SDK mods <span className="muted">mod.io</span></h3>
+        <p>Avatars, maps, weapons, and other content. Paste this path into the folder picker’s address bar:</p>
+        <code>{'%USERPROFILE%\\AppData\\LocalLow\\Stress Level Zero\\BONELAB\\Mods'}</code>
+        <p>Use <strong>LocalLow</strong>, not Local or LocalAppData.</p>
+        {fsSupported() && <SlotRow kind="sdk" />}
+      </section>
+      <section className="guide-location" aria-label="Code folder location">
+        <h3><Icon name="folder" /> Code mods <span className="muted">MelonLoader</span></h3>
+        <p>Choose your BONELAB game folder (recommended), or its Mods subfolder. A typical Steam location is:</p>
+        <code>{'C:\\Program Files (x86)\\Steam\\steamapps\\common\\BONELAB'}</code>
+        <p>Your Steam library may be on another drive. In Steam: BONELAB → Manage → Browse local files. Selecting the game folder also allows Plugins and UserData files to install.</p>
+        {fsSupported() && <SlotRow kind="code" />}
+      </section>
+      {!fsSupported() && <p className="banner">Folder access requires Chrome or Edge on PC. You can still browse mods and download ZIP files in this browser.</p>}
+      <div className="guide-footer">
+        <span className="muted">Optional. You can connect later from the header.</span>
+        <button className="btn primary" onClick={() => dialog.current?.close()}>Continue to mods</button>
+      </div>
+    </dialog>
   );
 }
 
@@ -171,17 +242,18 @@ export function FoldersMenu() {
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
       >
-        <span className="dot" />
+        <Icon name="folder" />
         {label}
         <span className="caret">▾</span>
       </button>
       {open && (
-        <div className="popover" role="menu">
-          <div className="pop-head">Mod folders</div>
+        <div className="popover" role="region" aria-label="Mod folders">
+          <div className="pop-head">Your local library</div>
+          <p className="pop-description">Connect the folders where your mods live.</p>
           <SlotRow kind="sdk" />
           <SlotRow kind="code" />
           <div className="pop-foot">
-            Pick any folder — Sigmabone detects which type it is automatically.
+            Choose the LocalLow Mods folder for SDK mods and the game folder for code mods.
           </div>
           <ProxyField />
         </div>
