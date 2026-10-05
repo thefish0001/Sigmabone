@@ -66,7 +66,10 @@ export default function CollectionView({
   const [loadErr, setLoadErr] = useState('');
   const [rowState, setRowState] = useState<Record<string, RowState>>({});
   const [rowMsg, setRowMsg] = useState<Record<string, string>>({});
+  const [rowProg, setRowProg] = useState<Record<string, number>>({});
   const [installing, setInstalling] = useState(false);
+  const [installDone, setInstallDone] = useState(0);
+  const [installTotal, setInstallTotal] = useState(0);
   const [connectBusy, setConnectBusy] = useState<FolderKind | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -168,36 +171,51 @@ export default function CollectionView({
     setRowState((p) => ({ ...p, [key]: s }));
     setRowMsg((p) => ({ ...p, [key]: msg }));
   };
+  const setProg = (key: string, f: number) =>
+    setRowProg((p) => ({ ...p, [key]: Math.min(1, Math.max(0, f)) }));
+  const clearProg = (key: string) =>
+    setRowProg((p) => {
+      const n = { ...p };
+      delete n[key];
+      return n;
+    });
 
   const installSdkRow = async (mod: ModioMod, curScan: ScanResult) => {
     if (!sdk || !gameId) return curScan;
+    const key = `m${mod.id}`;
     try {
       const fresh = await getMod(apiKey, gameId, mod.id);
-      const folder = await installMod(sdk.handle, fresh, proxy);
+      const folder = await installMod(sdk.handle, fresh, proxy, (f) =>
+        setProg(key, f),
+      );
       const s = await recordInstall(sdk, curScan, fresh, folder);
       setScan('sdk', s);
-      setState(`m${mod.id}`, 'done');
+      setState(key, 'done');
+      clearProg(key);
       return s;
     } catch (e) {
-      setState(`m${mod.id}`, 'fail', e instanceof Error ? e.message : 'failed');
+      setState(key, 'fail', e instanceof Error ? e.message : 'failed');
+      clearProg(key);
       return curScan;
     }
   };
 
   const installTsRow = async (pkg: TsPackage, curScan: ScanResult) => {
     if (!code) return curScan;
+    const key = `t${pkg.full_name}`;
     try {
-      const r = await installTs(code, pkg, proxy);
+      const r = await installTs(code, pkg, proxy, (f) => setProg(key, f));
       if (r.via === 'download') {
         const a = document.createElement('a');
         a.href = r.url!;
         a.rel = 'noreferrer';
         a.click();
         setState(
-          `t${pkg.full_name}`,
+          key,
           'downloaded',
           'zip went to Downloads — extract into your Mods folder',
         );
+        clearProg(key);
         return curScan;
       }
       const s = await recordInstallPkg(
@@ -208,35 +226,51 @@ export default function CollectionView({
         r.files,
       );
       setScan('code', s);
-      setState(`t${pkg.full_name}`, 'done');
+      setState(key, 'done');
+      clearProg(key);
       return s;
     } catch (e) {
-      setState(
-        `t${pkg.full_name}`,
-        'fail',
-        e instanceof Error ? e.message : 'failed',
-      );
+      setState(key, 'fail', e instanceof Error ? e.message : 'failed');
+      clearProg(key);
       return curScan;
     }
   };
 
   const installAll = async () => {
     setInstalling(true);
+    const queue = [
+      ...(sdkScan && sdk ? missingM.map((r) => ({ kind: 'm' as const, r })) : []),
+      ...(codeScan && code ? missingT.map((r) => ({ kind: 't' as const, r })) : []),
+    ];
+    setInstallTotal(queue.length);
+    setInstallDone(0);
+    let done = 0;
+    const bump = () => setInstallDone(++done);
     if (sdkScan && sdk) {
       let cur = sdkScan;
       for (const r of missingM) {
-        if (rowState[`m${r.mod.id}`] === 'done') continue;
-        setState(`m${r.mod.id}`, 'doing');
+        const key = `m${r.mod.id}`;
+        if (rowState[key] === 'done') {
+          bump();
+          continue;
+        }
+        setState(key, 'doing');
         cur = (await installSdkRow(r.mod, cur)) ?? cur;
+        bump();
       }
     }
     if (codeScan && code) {
       let cur = codeScan;
       for (const r of missingT) {
-        const st = rowState[`t${r.pkg.full_name}`];
-        if (st === 'done' || st === 'downloaded') continue;
-        setState(`t${r.pkg.full_name}`, 'doing');
+        const key = `t${r.pkg.full_name}`;
+        const st = rowState[key];
+        if (st === 'done' || st === 'downloaded') {
+          bump();
+          continue;
+        }
+        setState(key, 'doing');
         cur = (await installTsRow(r.pkg, cur)) ?? cur;
+        bump();
       }
     }
     setInstalling(false);
@@ -301,6 +335,10 @@ export default function CollectionView({
   const totalRows = mRows.length + tRows.length;
   const canInstallAll =
     (missingM.length > 0 && !!sdkScan) || (missingT.length > 0 && !!codeScan);
+  const partial = Object.values(rowProg).reduce((a, b) => a + b, 0);
+  const overallFrac = installTotal
+    ? Math.min(1, (installDone + partial) / installTotal)
+    : 0;
 
   return (
     <div className="wrap collection">
@@ -412,7 +450,11 @@ export default function CollectionView({
                           await installSdkRow(r.mod, sdkScan);
                         }}
                       >
-                        {st === 'doing' ? '…' : 'Install'}
+                        {st === 'doing'
+                          ? rowProg[key] !== undefined
+                            ? `${Math.round(rowProg[key] * 100)}%`
+                            : '…'
+                          : 'Install'}
                       </button>
                     )}
                     {r.status === 'missing' && (
@@ -462,6 +504,16 @@ export default function CollectionView({
                       </button>
                     )}
                   </div>
+                  {st === 'doing' && (
+                    <div
+                      className={
+                        'rowprog' + (rowProg[key] === undefined ? ' indet' : '')
+                      }
+                      role="progressbar"
+                    >
+                      <i style={{ width: `${(rowProg[key] ?? 0) * 100}%` }} />
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -535,7 +587,11 @@ export default function CollectionView({
                           await installTsRow(r.pkg, codeScan);
                         }}
                       >
-                        {st === 'doing' ? '…' : 'Install'}
+                        {st === 'doing'
+                          ? rowProg[key] !== undefined
+                            ? `${Math.round(rowProg[key] * 100)}%`
+                            : '…'
+                          : 'Install'}
                       </button>
                     )}
                     {r.status === 'missing' && (
@@ -586,6 +642,16 @@ export default function CollectionView({
                       </button>
                     )}
                   </div>
+                  {st === 'doing' && (
+                    <div
+                      className={
+                        'rowprog' + (rowProg[key] === undefined ? ' indet' : '')
+                      }
+                      role="progressbar"
+                    >
+                      <i style={{ width: `${(rowProg[key] ?? 0) * 100}%` }} />
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -603,12 +669,30 @@ export default function CollectionView({
 
       {ready && missingCount > 0 && (sdkScan || codeScan) && (
         <div className="footer-bar">
-          <span>
-            {missingCount} missing
-            {missingBytes > 0 && ` · ${fmtBytes(missingBytes)}`}
-            {!sdkScan && missingM.length > 0 && ' · sdk folder not connected'}
-            {!codeScan && missingT.length > 0 && ' · code folder not connected'}
-          </span>
+          {installing ? (
+            <div
+              className="installprog"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(overallFrac * 100)}
+            >
+              <div className="bar">
+                <i style={{ width: `${overallFrac * 100}%` }} />
+              </div>
+              <span className="pct">{Math.round(overallFrac * 100)}%</span>
+              <span className="muted">
+                {installDone} of {installTotal}
+              </span>
+            </div>
+          ) : (
+            <span>
+              {missingCount} missing
+              {missingBytes > 0 && ` · ${fmtBytes(missingBytes)}`}
+              {!sdkScan && missingM.length > 0 && ' · sdk folder not connected'}
+              {!codeScan && missingT.length > 0 && ' · code folder not connected'}
+            </span>
+          )}
           <button
             className="btn primary"
             onClick={installAll}

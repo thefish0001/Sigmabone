@@ -1108,6 +1108,7 @@ button {
   border: 0;
   border-radius: 0;
   padding: 18px 20px;
+  position: relative;
   transition: background 150ms var(--ease);
 }
 .mrow + .mrow {
@@ -1153,6 +1154,74 @@ button {
   align-items: center;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+.mrow-actions .btn {
+  min-width: 64px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* thin progress bar hugging the row's bottom edge */
+.rowprog {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  overflow: hidden;
+}
+.rowprog i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--acc), var(--acc-hi));
+  border-radius: 0 3px 3px 0;
+  transition: width 200ms var(--ease);
+}
+.rowprog.indet i {
+  width: 35% !important;
+  border-radius: 3px;
+  animation: prog-slide 1.1s ease-in-out infinite;
+}
+@keyframes prog-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
+}
+
+/* overall install progress inside the footer bar */
+.installprog {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+}
+.installprog .bar {
+  flex: 1;
+  height: 6px;
+  min-width: 60px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.09);
+  overflow: hidden;
+}
+.installprog .bar i {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--acc), var(--acc-hi));
+  box-shadow: 0 0 12px rgba(240, 124, 104, 0.45);
+  transition: width 250ms var(--ease);
+}
+.installprog .pct {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  min-width: 44px;
+}
+.installprog .muted {
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .pill {

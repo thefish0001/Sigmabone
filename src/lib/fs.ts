@@ -355,11 +355,17 @@ async function writeFileAt(
   await w.close();
 }
 
+/** 0..1 progress callback; never called when the total size is unknown so
+ *  callers can show an indeterminate bar instead */
+export type ProgressCb = (fraction: number) => void;
+
 /** fetch a mod archive through the available proxy chain, verifying we
  *  actually got a file — an SPA fallback would answer with HTML */
 async function fetchArchive(
   url: string,
   proxyBase = '',
+  expected = 0,
+  onProgress?: ProgressCb,
 ): Promise<Uint8Array | null> {
   const candidates: string[] = [];
   if (proxyBase) candidates.push(proxyBase + encodeURIComponent(url));
@@ -369,8 +375,26 @@ async function fetchArchive(
     try {
       const r = await fetch(u);
       const ct = r.headers.get('content-type') ?? '';
-      if (r.ok && !ct.includes('text/html'))
-        return new Uint8Array(await r.arrayBuffer());
+      if (!r.ok || ct.includes('text/html') || !r.body) continue;
+      const total =
+        Number(r.headers.get('content-length')) || expected;
+      const rd = r.body.getReader();
+      const chunks: Uint8Array[] = [];
+      let got = 0;
+      for (;;) {
+        const { done, value } = await rd.read();
+        if (done) break;
+        chunks.push(value);
+        got += value.length;
+        if (total) onProgress?.(got / total);
+      }
+      const buf = new Uint8Array(got);
+      let o = 0;
+      for (const c of chunks) {
+        buf.set(c, o);
+        o += c.length;
+      }
+      return buf;
     } catch {
       /* try next candidate */
     }
@@ -382,10 +406,16 @@ export async function installMod(
   dir: DirLike,
   mod: ModioMod,
   proxyBase = '',
+  onProgress?: ProgressCb,
 ): Promise<string> {
   const url = mod.modfile?.download.binary_url;
   if (!url) throw new Error('No downloadable file for this mod');
-  const buf = await fetchArchive(url, proxyBase);
+  const buf = await fetchArchive(
+    url,
+    proxyBase,
+    mod.modfile?.filesize ?? 0,
+    (f) => onProgress?.(f * 0.85),
+  );
   if (!buf) throw new Error('Download blocked — try again or use ↓ zip');
   const raw = unzipSync(buf);
 
@@ -409,9 +439,11 @@ export async function installMod(
       : '';
   const base = commonRoot || sanitize(mod.name_id || `mod-${mod.id}`);
 
+  let n = 0;
   for (const e of entries) {
     const rel = commonRoot ? e.name : `${base}/${e.name}`;
     await writeFileAt(dir, rel, e.data);
+    onProgress?.(0.85 + 0.15 * (++n / entries.length));
   }
   return commonRoot || base;
 }
@@ -437,7 +469,12 @@ export async function recordInstall(
     manual: scan.manifest.manual.filter((i) => i !== mod.id),
   };
   await writeManifest(slot.handle, manifest);
-  return { ...scan, manifest };
+  /* the freshly written folder isn't in the pre-install scan — add it or
+     statusFor's manifest+folder check keeps reporting "missing" */
+  const names = scan.names.includes(folder)
+    ? scan.names
+    : [...scan.names, folder].sort((a, b) => a.localeCompare(b));
+  return { ...scan, names, manifest };
 }
 
 /* ---------- installing: code mods (thunderstore) ---------- */
@@ -466,11 +503,17 @@ export async function installTs(
   slot: FolderSlot,
   pkg: TsPackage,
   proxyBase = '',
+  onProgress?: ProgressCb,
 ): Promise<TsInstallResult> {
   const ver = latest(pkg);
   if (!ver) throw new Error('No available version');
 
-  const buf = await fetchArchive(ver.download_url, proxyBase);
+  const buf = await fetchArchive(
+    ver.download_url,
+    proxyBase,
+    ver.file_size ?? 0,
+    (f) => onProgress?.(f * 0.85),
+  );
   if (!buf)
     return { via: 'download', files: [], skipped: [], url: ver.download_url };
 
@@ -491,6 +534,7 @@ export async function installTs(
   const modsDir = await modsDirOf(slot);
   const files: string[] = [];
   const skipped: string[] = [];
+  let n = 0;
 
   for (const e of entries) {
     const segs = e.name.split('/');
@@ -511,6 +555,7 @@ export async function installTs(
     } else {
       skipped.push(e.name);
     }
+    onProgress?.(0.85 + 0.15 * (++n / entries.length));
   }
   return { via: 'folder', files, skipped };
 }
