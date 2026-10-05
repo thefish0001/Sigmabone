@@ -32,14 +32,15 @@ Share **BONELAB** mod collections as a single link — no server, no accounts.
 
 The app needs a free **read-only mod.io API key** (Thunderstore needs none).
 
-- **Deployed on Cloudflare Pages**: set it once as a secret and every visitor
-  is keyless — the `/api/modio` function injects it server-side.
+- **Deployed on Cloudflare**: set it once as a secret and every visitor is
+  keyless — the `/api/modio` route injects it server-side.
 - **Anywhere else**: visitors paste their own key (stored in `localStorage`
   only), or bake one into the build via `.env` → `VITE_MODIO_API_KEY=…`.
 
-## Deploy — Cloudflare Pages (recommended, free)
+## Deploy — Cloudflare Workers (recommended, free)
 
-Cloudflare Pages hosts the static site **and** runs two tiny Functions:
+The repo deploys as a **Cloudflare Worker with static assets** — one small
+script (`worker/index.ts`) that serves `dist/` and two API routes:
 
 - `/api/modio/*` — proxies the mod.io API with your key as a server-side
   secret → **friends never need an API key**
@@ -48,15 +49,17 @@ Cloudflare Pages hosts the static site **and** runs two tiny Functions:
   falling back to manual zip downloads
 
 Files are streamed, never buffered — big avatar packs pass straight through.
+Free tier covers ~100k requests/day.
 
 **Setup (5 min):**
 
-1. Push this repo to GitHub.
-2. [dash.cloudflare.com](https://dash.cloudflare.com) → **Workers & Pages** →
-   **Create** → **Pages** → **Connect to Git** → pick the repo.
-3. Build command `npm run build`, output directory `dist`.
-4. After first deploy: **Settings → Environment variables** → add
-   `MODIO_API_KEY` = your read-only key (Production + Preview) → redeploy.
+1. [dash.cloudflare.com](https://dash.cloudflare.com) → **Workers & Pages** →
+   **Create** → **Import a repository** → pick this repo.
+2. Build command: `npm run build` · Deploy command: `npx wrangler deploy` ·
+   Preview command: `npx wrangler preview` (defaults are already correct —
+   `wrangler.toml` points assets at `dist/`).
+3. After first deploy: **Settings → Variables and Secrets** → add secret
+   `MODIO_API_KEY` = your read-only mod.io key → redeploy.
 
 Or from the CLI:
 
@@ -64,18 +67,18 @@ Or from the CLI:
 npm i -g wrangler
 wrangler login
 npm run build
-wrangler pages deploy dist --project-name sigmabone
-wrangler pages secret put MODIO_API_KEY --project-name sigmabone
+wrangler deploy
+wrangler secret put MODIO_API_KEY
 ```
 
-**GitHub Pages / Netlify also work** for the static site — everything
+**GitHub Pages / Netlify also work** for the static `dist/` — everything
 degrades gracefully (visitors paste their own API key, code mods download
 zips manually instead of writing to the folder).
 
 ## Code-mod downloads caveat (self-hosting)
 
 `ccdn.thunderstore.io` sends no CORS headers, so browsers can't fetch code
-mod zips directly. On Cloudflare Pages the built-in `/api/proxy` handles it.
+mod zips directly. On Cloudflare the built-in `/api/proxy` handles it.
 Elsewhere, set a **download proxy** in the folders menu, or code mods fall
 back to a normal `Downloads/` zip.
 
@@ -83,9 +86,9 @@ back to a normal `Downloads/` zip.
 
 ```
 npm install
-npm run dev      # http://localhost:5173
+npm run dev      # http://localhost:5173 (site only)
 npm run build    # → dist/
-npx wrangler pages dev dist   # optional: test the Functions locally
+npx wrangler dev # local Worker: site + /api routes together
 ```
 
 ## Limits
