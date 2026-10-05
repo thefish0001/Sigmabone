@@ -113,7 +113,7 @@ export default function App() {
           SIGMA<span>BONE</span>
         </a>
         <nav>
-          <a href="#/new">New collection</a>
+          <a href="#/new">Add mods</a>
           <ApiChip />
           <FoldersMenu />
         </nav>

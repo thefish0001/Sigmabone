@@ -101,6 +101,11 @@ async function request<T>(
   path: string,
   params: Record<string, string | number> = {},
 ): Promise<T> {
+  // never fire an unauthenticated request — an empty api_key makes mod.io
+  // answer "malformed/missing api_key" instead of a clean error
+  if (!serverBase && !apiKey)
+    throw new ModioError(0, 0, 'mod.io is not configured on this deployment');
+
   const url = new URL((serverBase ?? API_ROOT) + path, location.origin);
   if (!serverBase) url.searchParams.set('api_key', apiKey);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, String(v));

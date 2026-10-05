@@ -11,6 +11,10 @@
 interface Env {
   MODIO_API_KEY?: string;
   ASSETS: { fetch: typeof fetch };
+  COLLECTION?: {
+    get(key: string): Promise<string | null>;
+    put(key: string, value: string): Promise<void>;
+  };
 }
 
 const CORS: Record<string, string> = {
@@ -29,6 +33,11 @@ export default {
     }
     if (url.pathname.startsWith('/api/modio/')) return modio(url, request, env);
     if (url.pathname === '/api/proxy') return proxy(url);
+    if (url.pathname === '/api/collection') {
+      if (request.method === 'GET') return getCollection(env);
+      if (request.method === 'PUT') return putCollection(request, env);
+      return new Response('method not allowed', { status: 405 });
+    }
     return env.ASSETS.fetch(request);
   },
 } satisfies ExportedHandler<Env>;
@@ -62,6 +71,55 @@ async function modio(
     res.headers.get('content-type') ?? 'application/json',
   );
   return new Response(res.body, { status: res.status, headers });
+}
+
+/* ---------- shared collection (KV) ----------
+   One collection for the whole friend group: GET reads it, PUT replaces
+   it. Requires a KV namespace bound as COLLECTION — without the binding
+   the routes 503 and the client just hides the shared UI. */
+
+const COLLECTION_KEY = 'shared';
+const EMPTY = '{"v":2,"n":"Shared collection","m":[],"t":[]}';
+
+const colUnavailable = () =>
+  Response.json(
+    { error: { message: 'KV namespace COLLECTION not bound' } },
+    { status: 503, headers: CORS },
+  );
+
+async function getCollection(env: Env): Promise<Response> {
+  if (!env.COLLECTION) return colUnavailable();
+  const raw = await env.COLLECTION.get(COLLECTION_KEY);
+  return new Response(raw ?? EMPTY, {
+    headers: { ...CORS, 'content-type': 'application/json' },
+  });
+}
+
+async function putCollection(request: Request, env: Env): Promise<Response> {
+  if (!env.COLLECTION) return colUnavailable();
+  let body: {
+    n?: unknown;
+    m?: unknown;
+    t?: unknown;
+  } | null = null;
+  try {
+    body = await request.json();
+  } catch {
+    return new Response('invalid json', { status: 400 });
+  }
+  const col = {
+    v: 2,
+    n: String(body?.n ?? '').slice(0, 120) || 'Shared collection',
+    m: (Array.isArray(body?.m) ? (body.m as { i: unknown }[]) : [])
+      .slice(0, 1000)
+      .map((e) => ({ i: Math.trunc(Number(e?.i) || 0) }))
+      .filter((e) => e.i > 0),
+    t: (Array.isArray(body?.t) ? (body.t as unknown[]) : [])
+      .slice(0, 1000)
+      .filter((s): s is string => typeof s === 'string' && s.length < 200),
+  };
+  await env.COLLECTION.put(COLLECTION_KEY, JSON.stringify(col));
+  return Response.json(col, { headers: CORS });
 }
 
 async function proxy(reqUrl: URL): Promise<Response> {

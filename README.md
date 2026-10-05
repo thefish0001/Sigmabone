@@ -48,8 +48,23 @@ script (`worker/index.ts`) that serves `dist/` and two API routes:
   thunderstore/mod.io CDNs) → **code mods install one-click** instead of
   falling back to manual zip downloads
 
+- `/api/collection` — the group's **shared collection** stored in Workers KV:
+  one collection everyone edits. When it has mods it becomes the homepage;
+  friends add via the builder → "Publish to shared".
+
 Files are streamed, never buffered — big avatar packs pass straight through.
-Free tier covers ~100k requests/day.
+Free tier covers ~100k requests/day + 1GB KV storage (a collection is ~1KB).
+
+**Shared collection setup (one time):**
+
+```
+wrangler kv namespace create COLLECTION   # prints an id
+```
+
+Then either paste that id into `wrangler.toml` under `[[kv_namespaces]]`
+(uncomment the block), or in the dashboard: **Settings → Bindings → Add →
+KV namespace** → variable name `COLLECTION` → pick the namespace → redeploy.
+Without it, the shared-collection buttons simply stay hidden.
 
 **Setup (5 min):**
 

@@ -19,6 +19,7 @@ import {
   type TsPackage,
 } from '../lib/thunderstore';
 import { parseModRef, parseShareLink, shareUrl } from '../lib/collection';
+import { getShared, putShared } from '../lib/shared';
 import { ApiDown, SourceTag, Thumb } from '../components';
 
 type Src = 'm' | 't';
@@ -49,7 +50,14 @@ export default function Builder() {
   const [refBusy, setRefBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [draftMods, setDraftMods] = useState<ModioMod[]>([]);
+  const [sharedOn, setSharedOn] = useState(false);
+  const [sharedBusy, setSharedBusy] = useState(false);
   const seq = useRef(0);
+
+  /* is the deployment's shared-collection store bound? */
+  useEffect(() => {
+    getShared().then((c) => setSharedOn(c !== null));
+  }, []);
 
   /* warm the thunderstore index in the background */
   useEffect(() => {
@@ -200,6 +208,33 @@ export default function Builder() {
         : '',
     [draft, draftName, total],
   );
+
+  const publishShared = async () => {
+    if (!total) return;
+    setSharedBusy(true);
+    const ok = await putShared({
+      v: 2,
+      n: draftName,
+      m: draft.m.map((i) => ({ i })),
+      t: draft.t,
+    });
+    setSharedBusy(false);
+    toast(
+      ok
+        ? 'Published — friends see this collection on the homepage'
+        : "Couldn't publish — shared store not reachable",
+      ok ? 'ok' : 'err',
+    );
+  };
+
+  const loadShared = async () => {
+    setSharedBusy(true);
+    const c = await getShared();
+    setSharedBusy(false);
+    if (!c) return toast('Shared collection not reachable', 'err');
+    setDraft({ m: c.m.map((e) => e.i), t: c.t }, c.n);
+    toast('Loaded the shared collection into your draft', 'ok');
+  };
 
   const copy = async () => {
     if (!url) return;
@@ -454,6 +489,24 @@ export default function Builder() {
             {copied ? 'Copied!' : 'Copy share link'}
           </button>
         </div>
+        {sharedOn && (
+          <div className="shared-actions">
+            <button
+              className="btn primary"
+              onClick={publishShared}
+              disabled={!total || sharedBusy}
+            >
+              {sharedBusy ? '…' : 'Publish to shared'}
+            </button>
+            <button
+              className="btn ghost"
+              onClick={loadShared}
+              disabled={sharedBusy}
+            >
+              Load shared
+            </button>
+          </div>
+        )}
         {!!total && (
           <>
             <input

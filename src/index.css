@@ -860,6 +860,14 @@ button {
   justify-content: space-between;
   margin-top: 16px;
 }
+.shared-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.shared-actions .btn {
+  flex: 1;
+}
 
 /* ---------- source tags ---------- */
 

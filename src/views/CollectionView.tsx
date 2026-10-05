@@ -424,7 +424,7 @@ export default function CollectionView({ data }: { data: string }) {
                           )
                         }
                       >
-                        That's it
+                        Confirm
                       </button>
                     )}
                     {(r.status === 'missing' || r.status === 'likely') &&
@@ -567,7 +567,7 @@ export default function CollectionView({ data }: { data: string }) {
                           )
                         }
                       >
-                        That's it
+                        Confirm
                       </button>
                     )}
                     {(r.status === 'missing' || r.status === 'likely') &&

@@ -6,3 +6,10 @@ main = "worker/index.ts"
 directory = "./dist"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
+
+# Shared collection storage — create once, then uncomment + paste the id:
+#   wrangler kv namespace create COLLECTION
+# (or bind it in the dashboard: Settings → Bindings → KV namespace)
+# [[kv_namespaces]]
+# binding = "COLLECTION"
+# id = "PASTE_NAMESPACE_ID_HERE"

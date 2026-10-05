@@ -1,14 +1,27 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useStore } from '../store';
-import { decodeCollection } from '../lib/collection';
+import { decodeCollection, encodeCollection } from '../lib/collection';
+import { getShared } from '../lib/shared';
 import { fsSupported } from '../lib/fs';
 import { connectAny } from '../components';
+import CollectionView from './CollectionView';
 
 export default function Home() {
   const { sdkScan, codeScan } = useStore();
   const [link, setLink] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
+  const [shared, setShared] = useState<string | null>(null);
+  const [sharedEmpty, setSharedEmpty] = useState(false);
+
+  /* the group's shared collection — if it has mods it IS the homepage */
+  useEffect(() => {
+    getShared().then((c) => {
+      if (!c) return;
+      if (c.m.length + c.t.length > 0) setShared(encodeCollection(c));
+      else setSharedEmpty(true);
+    });
+  }, []);
 
   const open = (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,6 +48,9 @@ export default function Home() {
   };
 
   const folders = (sdkScan ? 1 : 0) + (codeScan ? 1 : 0);
+
+  /* shared collection takes over the homepage once it has mods */
+  if (shared) return <CollectionView data={shared} />;
 
   return (
     <div className="wrap">
@@ -106,6 +122,13 @@ export default function Home() {
           )}
         </div>
       </div>
+
+      {sharedEmpty && (
+        <p className="hint muted">
+          Your group's shared collection is empty — open{' '}
+          <a href="#/new">Add mods</a> and hit “Publish to shared” to fill it.
+        </p>
+      )}
     </div>
   );
 }
