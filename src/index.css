@@ -1169,10 +1169,6 @@ button {
   background: rgba(61, 220, 132, 0.13);
   color: var(--ok);
 }
-.pill.likely {
-  background: rgba(255, 176, 46, 0.13);
-  color: var(--warn);
-}
 .pill.missing {
   background: var(--acc-soft);
   color: var(--acc-hi);
@@ -1221,65 +1217,84 @@ button {
   margin-top: 12px;
 }
 .folder-guide {
-  width: min(620px, calc(100vw - 32px));
+  width: min(560px, calc(100vw - 32px));
   max-height: calc(100dvh - 48px);
   overflow-y: auto;
   overscroll-behavior: contain;
   margin: auto;
-  padding: 32px;
+  padding: 28px;
   color: var(--txt);
   background: #1c1e21;
   border: 1px solid var(--glass-edge);
-  border-radius: 22px;
+  border-radius: 20px;
   box-shadow: 0 32px 100px rgba(0, 0, 0, 0.6);
+}
+.folder-guide[open] {
+  animation: dlg-in 260ms var(--ease);
 }
 .folder-guide::backdrop {
   background: rgba(0, 0, 0, 0.65);
+  animation: bd-in 220ms linear;
+}
+@keyframes dlg-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+}
+@keyframes bd-in {
+  from {
+    opacity: 0;
+  }
 }
 .guide-close {
   position: absolute;
-  top: 16px;
-  right: 16px;
-  font-size: 22px;
+  top: 14px;
+  right: 14px;
+  font-size: 20px;
 }
 .folder-guide > h2 {
-  font-size: clamp(24px, 4vw, 30px);
-  letter-spacing: -0.035em;
-  margin-right: 20px;
+  font-size: 21px;
+  letter-spacing: -0.03em;
+  margin-right: 24px;
 }
 .folder-guide > .muted {
-  font-size: 14px;
+  font-size: 13px;
+  margin-top: 4px;
 }
-.guide-location {
-  padding-top: 20px;
-  margin-top: 20px;
+.guide-row {
+  padding-top: 14px;
+  margin-top: 16px;
   border-top: 1px solid var(--line);
 }
-.guide-location h3 {
+.guide-row h3 {
   display: flex;
   align-items: center;
   gap: 8px;
+  font-size: 14px;
 }
-.guide-location h3 > span {
+.guide-row h3 > span {
   margin-left: auto;
   font-size: 12px;
   font-weight: 400;
 }
-.guide-location p {
-  color: var(--dim);
-  font-size: 12px;
-  line-height: 1.6;
-}
-.guide-location > code {
+.guide-row > code {
   display: block;
-  padding: 12px;
+  margin-top: 9px;
+  padding: 9px 11px;
   border: 1px solid var(--line);
+  border-radius: 8px;
   overflow-wrap: anywhere;
   user-select: all;
-  font-size: 12px;
+  font-size: 11.5px;
+  color: var(--dim);
 }
-.guide-location .slot {
-  margin-top: 14px;
+.guide-hint {
+  font-size: 11.5px;
+  margin-top: 6px;
+}
+.guide-row .slot {
+  margin-top: 10px;
 }
 .slot-error {
   flex-wrap: wrap;
@@ -1298,24 +1313,57 @@ button {
 }
 .guide-footer {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-top: 24px;
-  font-size: 12px;
-}
-.guide-footer .btn {
-  flex: none;
+  justify-content: flex-end;
+  margin-top: 18px;
 }
 @media (max-width: 640px) {
   .folder-guide {
-    padding: 24px 18px;
+    padding: 22px 18px;
     max-height: calc(100dvh - 24px);
   }
-  .guide-footer {
-    flex-direction: column;
-    align-items: stretch;
-  }
+}
+
+/* ---------- entrance animations ---------- */
+
+.col-head,
+.collection-summary,
+.library-loading,
+.banner,
+.empty-state {
+  animation: rise 380ms var(--ease) backwards;
+}
+.collection-summary {
+  animation-delay: 50ms;
+}
+.collection > .group {
+  animation: rise 420ms var(--ease) backwards;
+}
+.collection > .group:nth-of-type(2) {
+  animation-delay: 70ms;
+}
+.collection > .group:nth-of-type(3) {
+  animation-delay: 120ms;
+}
+.collection > .banner {
+  animation-delay: 30ms;
+}
+.list .mrow {
+  animation: rise 340ms var(--ease) backwards;
+}
+.list .mrow:nth-child(2) {
+  animation-delay: 30ms;
+}
+.list .mrow:nth-child(3) {
+  animation-delay: 60ms;
+}
+.list .mrow:nth-child(4) {
+  animation-delay: 90ms;
+}
+.list .mrow:nth-child(5) {
+  animation-delay: 120ms;
+}
+.list .mrow:nth-child(n + 6) {
+  animation-delay: 150ms;
 }
 
 .home-empty {

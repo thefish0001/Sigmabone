@@ -89,6 +89,9 @@ export async function pickFolder(kind?: FolderKind): Promise<FolderSlot> {
   const c = await classifyFolder(handle);
   if (kind === 'sdk' && (c.mode === 'root' || c.dlls > 0))
     throw new Error('This looks like a game or code-mod folder. For SDK mods, choose the Mods folder inside AppData\\LocalLow\\Stress Level Zero\\BONELAB.');
+  // a dir full of subfolders and no dlls smells like the LocalLow pallet dir
+  if (kind === 'code' && c.kind !== 'code' && c.dirs > 0)
+    throw new Error('This looks like an SDK mod folder. For code mods, choose the BONELAB game folder or the Mods folder inside it.');
   const slot: FolderSlot = {
     kind: kind ?? c.kind,
     handle,
@@ -250,6 +253,30 @@ export async function scanSlot(slot: FolderSlot): Promise<ScanResult> {
     if (name.startsWith('.')) continue;
     if (h.kind === 'directory') names.push(name);
     else files.push(name);
+  }
+  /* code mods: payloads occasionally nest (Mods/Name/x.dll) and loaders keep
+     plugins at the game root — scan one level deeper plus Plugins/UserData */
+  if (slot.kind === 'code') {
+    for (const dir of names) {
+      const sub = await listDir.getDirectoryHandle(dir).catch(() => null);
+      if (!sub) continue;
+      for await (const [n, h] of sub.entries()) {
+        if (!n.startsWith('.') && h.kind === 'file')
+          files.push(`${dir}/${n}`);
+      }
+    }
+    if (slot.mode === 'root') {
+      for (const extra of ['Plugins', 'UserData']) {
+        const sub = await slot.handle
+          .getDirectoryHandle(extra)
+          .catch(() => null);
+        if (!sub) continue;
+        for await (const [n, h] of sub.entries()) {
+          if (!n.startsWith('.') && h.kind === 'file')
+            files.push(`${extra}/${n}`);
+        }
+      }
+    }
   }
   try {
     const fh = await manifestDir.getFileHandle(MANIFEST_FILE);

@@ -67,6 +67,18 @@ export function parseShareLink(input: string): Collection | null {
   }
 }
 
+/** The group's baseline collection — what the homepage shows when the shared
+ *  store is empty or unreachable. Same data as the published #c= link. */
+export const DEFAULT_COLLECTION: Collection = {
+  v: 2,
+  n: '',
+  m: [
+    4161270, 4158753, 3289780, 4803081, 5125701, 2574661, 2421141, 3782411,
+    4756729, 3317431, 4633071, 4074626, 4914987, 5906367, 6083275, 6410591,
+  ].map((i) => ({ i })),
+  t: [],
+};
+
 export type ModRef = { kind: 'id'; id: number } | { kind: 'slug'; slug: string };
 
 /** Parse a pasted mod.io page URL, or a bare numeric mod id. */

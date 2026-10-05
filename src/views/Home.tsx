@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react';
-import { encodeCollection, type Collection } from '../lib/collection';
+import {
+  DEFAULT_COLLECTION,
+  encodeCollection,
+  type Collection,
+} from '../lib/collection';
 import { getShared } from '../lib/shared';
 import { fsSupported } from '../lib/fs';
 import { connectAny, Icon } from '../components';
@@ -27,21 +31,18 @@ export default function Home() {
     }
   };
 
-  /* populated shared collection → straight into the checklist */
-  const data = encodeCollection(shared && shared !== 'down'
-    ? shared
-    : { v: 2, n: 'BONELAB mods', m: [], t: [] });
+  /* the shared store wins when it has mods; the built-in default keeps the
+     page working when KV is down or was never published to */
+  const col =
+    shared && shared !== 'down' && shared.m.length + shared.t.length > 0
+      ? shared
+      : DEFAULT_COLLECTION;
+  const data = encodeCollection(col);
 
   return (
     <CollectionView
       key={data}
       data={data}
-      loadingCollection={shared === null}
-      collectionError={shared === 'down' ? 'The mod list could not be loaded. The shared collection service may be unavailable or its COLLECTION storage binding may be missing.' : ''}
-      onRetry={() => {
-        setShared(null);
-        void getShared().then((c) => setShared(c ?? 'down'));
-      }}
       emptyAction={fsSupported() && (
         <button className="btn ghost" onClick={connect} disabled={busy}>
           <Icon name="folder" /> {busy ? 'Scanning…' : 'Link mod folders'}

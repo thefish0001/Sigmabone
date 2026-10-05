@@ -5,7 +5,7 @@ import { latest } from './thunderstore';
 
 export const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
 
-export type InstallStatus = 'installed' | 'likely' | 'missing' | 'unavailable';
+export type InstallStatus = 'installed' | 'missing' | 'unavailable';
 
 export interface ModStatus {
   status: InstallStatus;
@@ -94,7 +94,7 @@ export function statusFor(mod: ModioMod, scan: ScanResult | null): ModStatus {
 
   for (const folder of scan.names) {
     if (fuzzyHit(folder, keys, needles))
-      return { status: 'likely', via: 'folder', folder };
+      return { status: 'installed', via: 'folder', folder };
   }
   return { status: 'missing', via: null };
 }
@@ -120,9 +120,14 @@ export function statusForPkg(
     .filter((t) => t.length);
 
   for (const entry of [...scan.names, ...scan.files]) {
-    const stem = entry.replace(/\.(dll|xml|json|zip)$/i, '');
+    // nested scan entries are "dir/file" — the dll name is what matters;
+    // mod managers also disable mods by appending .disabled
+    const stem = (entry.split('/').pop() ?? entry).replace(
+      /\.(dll|xml|json|zip|disabled)+$/i,
+      '',
+    );
     if (fuzzyHit(stem, keys, needles))
-      return { status: 'likely', via: 'folder', folder: entry };
+      return { status: 'installed', via: 'folder', folder: entry };
   }
   return { status: 'missing', via: null };
 }

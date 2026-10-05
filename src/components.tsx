@@ -172,27 +172,22 @@ export function FolderGuide({ ready }: { ready: boolean }) {
   return (
     <dialog ref={dialog} className="folder-guide" aria-labelledby="folder-guide-title" aria-describedby="folder-guide-description" onClose={() => setDismissed(true)}>
       <button className="x guide-close" aria-label="Close folder guide" onClick={() => dialog.current?.close()} autoFocus>×</button>
-      <div className="kicker">RECOMMENDED SETUP</div>
-      <h2 id="folder-guide-title">Connect your mod folders.</h2>
-      <p id="folder-guide-description" className="muted">See what’s already installed and put missing mods in the right place. BONELAB uses two different folders.</p>
-      <section className="guide-location" aria-label="SDK folder location">
+      <h2 id="folder-guide-title">Connect your mod folders</h2>
+      <p id="folder-guide-description" className="muted">Recommended — lets Sigmabone check what you have and install in the right place.</p>
+      <div className="guide-row">
         <h3><Icon name="library" /> SDK mods <span className="muted">mod.io</span></h3>
-        <p>Avatars, maps, weapons, and other content. Paste this path into the folder picker’s address bar:</p>
         <code>{'%USERPROFILE%\\AppData\\LocalLow\\Stress Level Zero\\BONELAB\\Mods'}</code>
-        <p>Use <strong>LocalLow</strong>, not Local or LocalAppData.</p>
         {fsSupported() && <SlotRow kind="sdk" />}
-      </section>
-      <section className="guide-location" aria-label="Code folder location">
+      </div>
+      <div className="guide-row">
         <h3><Icon name="folder" /> Code mods <span className="muted">MelonLoader</span></h3>
-        <p>Choose your BONELAB game folder (recommended), or its Mods subfolder. A typical Steam location is:</p>
         <code>{'C:\\Program Files (x86)\\Steam\\steamapps\\common\\BONELAB'}</code>
-        <p>Your Steam library may be on another drive. In Steam: BONELAB → Manage → Browse local files. Selecting the game folder also allows Plugins and UserData files to install.</p>
+        <p className="guide-hint muted">The game folder or the Mods folder inside it.</p>
         {fsSupported() && <SlotRow kind="code" />}
-      </section>
+      </div>
       {!fsSupported() && <p className="banner">Folder access requires Chrome or Edge on PC. You can still browse mods and download ZIP files in this browser.</p>}
       <div className="guide-footer">
-        <span className="muted">Optional. You can connect later from the header.</span>
-        <button className="btn primary" onClick={() => dialog.current?.close()}>Continue to mods</button>
+        <button className="btn primary" onClick={() => dialog.current?.close()}>Continue</button>
       </div>
     </dialog>
   );
@@ -306,7 +301,6 @@ export function ApiDown() {
 
 const PILL_LABEL: Record<InstallStatus, string> = {
   installed: 'installed',
-  likely: 'probably installed',
   missing: 'missing',
   unavailable: 'no pc file',
 };

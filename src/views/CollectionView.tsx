@@ -40,12 +40,9 @@ interface TRow {
 }
 
 export default function CollectionView({
-  data, loadingCollection = false, collectionError = '', onRetry, emptyAction,
+  data, emptyAction,
 }: {
   data: string;
-  loadingCollection?: boolean;
-  collectionError?: string;
-  onRetry?: () => void;
   emptyAction?: ReactNode;
 }) {
   const {
@@ -297,8 +294,8 @@ export default function CollectionView({
   /* sdk mods need the api; thunderstore-only collections don't */
   const needsApi = !col || col.m.length > 0;
   const apiDown = !gameId && needsApi && !!keyError;
-  const loading = loadingCollection || !col || mods === null || pkgs === null || (!gameId && needsApi);
-  const error = collectionError || loadErr;
+  const loading = !col || mods === null || pkgs === null || (!gameId && needsApi);
+  const error = loadErr;
   const ready = !loading && !error && !apiDown;
 
   const totalRows = mRows.length + tRows.length;
@@ -317,7 +314,7 @@ export default function CollectionView({
           <button className="btn ghost" onClick={copyLink}>
             <Icon name="link" /> {copied ? 'Copied!' : 'Copy link'}
           </button>
-          {col && !loadingCollection && !collectionError ? (
+          {col ? (
             <button className="btn primary" onClick={openInBuilder}>
               <Icon name="plus" /> Open builder
             </button>
@@ -327,12 +324,11 @@ export default function CollectionView({
         </div>
       </div>
 
-      {error ? (
+      {apiDown ? <ApiDown /> : error ? (
         <div className="banner library-error" role="alert">
           <span>{error}</span>
-          {onRetry && <button className="btn ghost sm" onClick={onRetry}>Retry</button>}
         </div>
-      ) : apiDown ? <ApiDown /> : loading ? (
+      ) : loading ? (
         <div className="list library-loading" role="status" aria-label="Loading mods">
           <p className="muted">Loading mods…</p>
           {[0, 1, 2].map((i) => <div className="skel row" key={i} />)}
@@ -407,34 +403,19 @@ export default function CollectionView({
                   </div>
                   <Pill status={st === 'done' ? 'installed' : r.status} />
                   <div className="mrow-actions">
-                    {r.status === 'likely' && sdkScan && sdk && (
+                    {r.status === 'missing' && sdkScan && sdk && (
                       <button
                         className="btn sm primary"
-                        onClick={async () =>
-                          setScan(
-                            'sdk',
-                            await markManual(sdk, sdkScan, r.mod.id, true),
-                          )
-                        }
+                        disabled={st === 'doing' || installing}
+                        onClick={async () => {
+                          setState(key, 'doing');
+                          await installSdkRow(r.mod, sdkScan);
+                        }}
                       >
-                        Confirm
+                        {st === 'doing' ? '…' : 'Install'}
                       </button>
                     )}
-                    {(r.status === 'missing' || r.status === 'likely') &&
-                      sdkScan &&
-                      sdk && (
-                        <button
-                          className="btn sm primary"
-                          disabled={st === 'doing' || installing}
-                          onClick={async () => {
-                            setState(key, 'doing');
-                            await installSdkRow(r.mod, sdkScan);
-                          }}
-                        >
-                          {st === 'doing' ? '…' : 'Install'}
-                        </button>
-                      )}
-                    {(r.status === 'missing' || r.status === 'likely') && (
+                    {r.status === 'missing' && (
                       <>
                         <button
                           className="btn sm ghost"
@@ -545,39 +526,19 @@ export default function CollectionView({
                   </div>
                   <Pill status={st === 'done' ? 'installed' : r.status} />
                   <div className="mrow-actions">
-                    {r.status === 'likely' && codeScan && code && (
+                    {r.status === 'missing' && codeScan && code && (
                       <button
                         className="btn sm primary"
-                        onClick={async () =>
-                          setScan(
-                            'code',
-                            await markManualPkg(
-                              code,
-                              codeScan,
-                              r.pkg.full_name,
-                              true,
-                            ),
-                          )
-                        }
+                        disabled={st === 'doing' || installing}
+                        onClick={async () => {
+                          setState(key, 'doing');
+                          await installTsRow(r.pkg, codeScan);
+                        }}
                       >
-                        Confirm
+                        {st === 'doing' ? '…' : 'Install'}
                       </button>
                     )}
-                    {(r.status === 'missing' || r.status === 'likely') &&
-                      codeScan &&
-                      code && (
-                        <button
-                          className="btn sm primary"
-                          disabled={st === 'doing' || installing}
-                          onClick={async () => {
-                            setState(key, 'doing');
-                            await installTsRow(r.pkg, codeScan);
-                          }}
-                        >
-                          {st === 'doing' ? '…' : 'Install'}
-                        </button>
-                      )}
-                    {(r.status === 'missing' || r.status === 'likely') && (
+                    {r.status === 'missing' && (
                       <>
                         <button
                           className="btn sm ghost"
