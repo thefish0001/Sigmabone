@@ -20,7 +20,7 @@ import {
   type ScanResult,
 } from '../lib/fs';
 import { statusFor, statusForPkg, type InstallStatus } from '../lib/match';
-import { connectAny, KeySetup, Pill, SourceTag, Thumb } from '../components';
+import { ApiDown, connectAny, Pill, SourceTag, Thumb } from '../components';
 
 type RowState = 'idle' | 'doing' | 'done' | 'fail' | 'downloaded';
 
@@ -44,7 +44,6 @@ export default function CollectionView({ data }: { data: string }) {
     apiKey,
     gameId,
     keyError,
-    keyless,
     sdk,
     code,
     sdkScan,
@@ -76,7 +75,7 @@ export default function CollectionView({ data }: { data: string }) {
 
   /* load mod.io mods */
   useEffect(() => {
-    if (!col || !(apiKey || keyless) || !gameId || !col.m.length) {
+    if (!col || !gameId || !col.m.length) {
       if (col) setMods([]);
       return;
     }
@@ -95,7 +94,7 @@ export default function CollectionView({ data }: { data: string }) {
     return () => {
       dead = true;
     };
-  }, [col, apiKey, keyless, gameId]);
+  }, [col, apiKey, gameId]);
 
   /* load thunderstore packages */
   useEffect(() => {
@@ -166,7 +165,7 @@ export default function CollectionView({ data }: { data: string }) {
   };
 
   const installSdkRow = async (mod: ModioMod, curScan: ScanResult) => {
-    if (!sdk || !(apiKey || keyless) || !gameId) return curScan;
+    if (!sdk || !gameId) return curScan;
     try {
       const fresh = await getMod(apiKey, gameId, mod.id);
       const folder = await installMod(sdk.handle, fresh);
@@ -287,16 +286,21 @@ export default function CollectionView({ data }: { data: string }) {
       </div>
     );
 
-  if (!(apiKey || keyless) || (keyError && !keyless))
+  /* sdk mods need the api; thunderstore-only collections don't */
+  const needsApi = !col || col.m.length > 0;
+  if (!gameId && needsApi)
     return (
       <div className="wrap">
-        <KeySetup
-          error={
-            keyError === 'invalid'
-              ? 'That API key was rejected by mod.io.'
-              : keyError || undefined
-          }
-        />
+        {keyError ? (
+          <ApiDown />
+        ) : (
+          <div className="list">
+            <div className="skel h1" />
+            {[0, 1, 2, 3].map((i) => (
+              <div className="skel row" key={i} />
+            ))}
+          </div>
+        )}
       </div>
     );
 

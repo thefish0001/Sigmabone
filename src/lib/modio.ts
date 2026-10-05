@@ -11,12 +11,17 @@ export async function probeServerKey(): Promise<boolean> {
     const r = await fetch('/api/modio/games?name_id=bonelab&_limit=1', {
       headers: { 'X-Modio-Platform': 'windows' },
     });
-    if (r.ok) {
+    // must actually be mod.io JSON — a static host's SPA fallback would
+    // return 200 index.html here
+    const body = (await r.json().catch(() => null)) as {
+      data?: unknown;
+    } | null;
+    if (r.ok && Array.isArray(body?.data)) {
       serverBase = '/api/modio';
       return true;
     }
   } catch {
-    /* not on a Pages deployment */
+    /* not on a Workers deployment */
   }
   return false;
 }

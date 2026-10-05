@@ -217,42 +217,17 @@ function ProxyField() {
   );
 }
 
-/** Paste-your-mod.io-key card. */
-export function KeySetup({ error }: { error?: string }) {
-  const setApiKey = useStore((s) => s.setApiKey);
-  const [v, setV] = useState('');
+/** Shown when the deployment's mod.io backend can't be reached. */
+export function ApiDown() {
   return (
-    <div className="card keycard">
-      <h3>mod.io API key needed</h3>
+    <div className="card apicard">
+      <h3>Can't reach the mod.io backend</h3>
       <p className="muted">
-        Sigmabone talks to mod.io directly from your browser — it needs a free
-        read-only API key. Create one at{' '}
-        <a href="https://mod.io/me/access" target="_blank" rel="noreferrer">
-          mod.io → API access
-        </a>{' '}
-        (add an app, copy the <em>API key</em>, read-only is enough) and paste it
-        here. It only lives in this browser.
+        The site's API proxy isn't answering. If you deployed this yourself,
+        the <code>MODIO_API_KEY</code> secret is missing or the Worker code
+        wasn't deployed — set it under{' '}
+        <em>Settings → Variables and Secrets</em> and redeploy.
       </p>
-      {error && <p className="err">{error}</p>}
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (v.trim()) setApiKey(v.trim());
-        }}
-      >
-        <input
-          className="input"
-          placeholder="paste API key"
-          value={v}
-          onChange={(e) => setV(e.target.value)}
-          autoComplete="off"
-          spellCheck={false}
-        />
-        <button className="btn primary" type="submit" disabled={!v.trim()}>
-          Save key
-        </button>
-      </form>
     </div>
   );
 }

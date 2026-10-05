@@ -19,7 +19,7 @@ import {
   type TsPackage,
 } from '../lib/thunderstore';
 import { parseModRef, parseShareLink, shareUrl } from '../lib/collection';
-import { KeySetup, SourceTag, Thumb } from '../components';
+import { ApiDown, SourceTag, Thumb } from '../components';
 
 type Src = 'm' | 't';
 
@@ -28,7 +28,6 @@ export default function Builder() {
     apiKey,
     gameId,
     keyError,
-    keyless,
     draft,
     draftName,
     addDraftMod,
@@ -73,7 +72,7 @@ export default function Builder() {
     const t = setTimeout(async () => {
       try {
         if (src === 'm') {
-          if (!(apiKey || keyless) || !gameId) return;
+          if (!gameId) return;
           const r = await searchMods(apiKey, gameId, needle);
           if (seq.current !== id) return;
           r.sort(
@@ -97,11 +96,11 @@ export default function Builder() {
       }
     }, 300);
     return () => clearTimeout(t);
-  }, [q, src, apiKey, keyless, gameId, tsIndex]);
+  }, [q, src, apiKey, gameId, tsIndex]);
 
   /* resolve draft mod.io ids → objects for display */
   useEffect(() => {
-    if (!(apiKey || keyless) || !gameId || !draft.m.length) {
+    if (!gameId || !draft.m.length) {
       setDraftMods([]);
       return;
     }
@@ -118,7 +117,7 @@ export default function Builder() {
     return () => {
       dead = true;
     };
-  }, [draft.m, apiKey, keyless, gameId]);
+  }, [draft.m, apiKey, gameId]);
 
   const addPkg = (pkg: TsPackage) => {
     addDraftPkg(pkg.full_name);
@@ -169,7 +168,7 @@ export default function Builder() {
       setRefErr('Paste a mod.io link, thunderstore link, mod id, or sigmabone link');
       return;
     }
-    if (!(apiKey || keyless) || !gameId) return;
+    if (!gameId) return;
     setRefBusy(true);
     try {
       const mod =
@@ -218,10 +217,17 @@ export default function Builder() {
     setTimeout(() => setCopied(false), 1600);
   };
 
-  if (!(apiKey || keyless) || (keyError && !keyless))
+  if (!gameId)
     return (
       <div className="wrap">
-        <KeySetup />
+        {keyError ? (
+          <ApiDown />
+        ) : (
+          <div className="list">
+            <div className="skel h1" />
+            <div className="skel row" />
+          </div>
+        )}
       </div>
     );
 

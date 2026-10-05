@@ -32,9 +32,33 @@ body {
   padding: 0;
 }
 
+::selection {
+  background: rgba(255, 75, 51, 0.28);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 body {
   background:
     radial-gradient(900px 480px at 15% -10%, rgba(255, 75, 51, 0.055), transparent 60%),
+    radial-gradient(760px 420px at 88% -6%, rgba(79, 179, 255, 0.04), transparent 62%),
     var(--bg);
   color: var(--txt);
   font-family:
@@ -212,8 +236,24 @@ button {
   background: var(--ok);
   box-shadow: 0 0 6px rgba(61, 220, 132, 0.6);
 }
-.chip.dim {
+.chip.dim,
+.chip.api {
   cursor: default;
+}
+.chip.bad {
+  color: var(--txt);
+}
+.chip.bad .dot {
+  background: var(--bad);
+  box-shadow: 0 0 6px rgba(255, 93, 93, 0.6);
+}
+.chip.api:not(.ok):not(.bad) .dot {
+  animation: pulse 1.2s var(--ease) infinite;
+}
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+  }
 }
 .chip .caret {
   font-size: 10px;
@@ -422,6 +462,21 @@ button {
   font-style: normal;
   color: var(--code);
 }
+.hero h1 .grad {
+  background: linear-gradient(100deg, var(--acc-hi) 5%, var(--acc) 45%, #ffb02e 95%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.hero {
+  animation: hero-in 320ms var(--ease);
+}
+@keyframes hero-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
 
 .card form {
   display: flex;
@@ -493,7 +548,9 @@ button {
 .btn.primary {
   background: var(--acc);
   color: #fff;
-  box-shadow: 0 1px 8px rgba(255, 75, 51, 0.35);
+  box-shadow:
+    0 1px 8px rgba(255, 75, 51, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
 }
 .btn.primary:hover {
   background: var(--acc-hi);
@@ -571,17 +628,14 @@ button {
   opacity: 0.55;
 }
 
-/* ---------- key setup ---------- */
+/* ---------- api down card ---------- */
 
-.keycard {
+.apicard {
   margin-bottom: 20px;
-  border-color: rgba(255, 75, 51, 0.3);
+  border-color: rgba(255, 93, 93, 0.3);
 }
-.keycard h3 {
+.apicard h3 {
   margin-top: 0;
-}
-.keycard .row {
-  margin-top: 12px;
 }
 
 /* ---------- builder ---------- */
@@ -614,10 +668,16 @@ button {
   display: flex;
   flex-direction: column;
 }
+.mcard .thumb {
+  transition: transform 240ms var(--ease);
+}
 .mcard:hover {
   transform: translateY(-2px);
   border-color: rgba(255, 255, 255, 0.14);
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
+}
+.mcard:hover .thumb {
+  transform: scale(1.035);
 }
 .mcard:active {
   transform: translateY(0);
@@ -1009,6 +1069,9 @@ button {
 /* ---------- accessibility: gentle equivalents ---------- */
 
 @media (prefers-reduced-motion: reduce) {
+  .hero {
+    animation: none;
+  }
   .card.lift:hover,
   .mcard:hover {
     transform: none;

@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { useStore } from '../store';
 import { decodeCollection } from '../lib/collection';
 import { fsSupported } from '../lib/fs';
-import { connectAny, KeySetup } from '../components';
+import { connectAny } from '../components';
 
 export default function Home() {
-  const { apiKey, keyError, keyless, sdkScan, codeScan } = useStore();
+  const { sdkScan, codeScan } = useStore();
   const [link, setLink] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -42,7 +42,7 @@ export default function Home() {
         <h1>
           Share BONELAB mods
           <br />
-          as a single link.
+          <span className="grad">as a single link.</span>
         </h1>
         <p>
           Build a collection — SDK mods <em>and</em> code mods — copy one URL.
@@ -50,16 +50,6 @@ export default function Home() {
           rest straight into the right folders. No accounts, no server.
         </p>
       </section>
-
-      {(!(apiKey || keyless) || (keyError && !keyless)) && (
-        <KeySetup
-          error={
-            keyError === 'invalid'
-              ? 'That API key was rejected by mod.io — double-check it and try again.'
-              : keyError || undefined
-          }
-        />
-      )}
 
       <div className="grid cols3">
         <div className="card lift">

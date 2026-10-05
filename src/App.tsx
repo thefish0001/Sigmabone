@@ -17,6 +17,24 @@ function useHash(): string {
   return h;
 }
 
+/* api status chip — green once the backend answers, red if misconfigured */
+function ApiChip() {
+  const { gameId, keyError } = useStore();
+  const cls = gameId ? ' ok' : keyError ? ' bad' : '';
+  const label = gameId ? 'mod.io' : keyError ? 'api offline' : 'connecting…';
+  const title = gameId
+    ? 'mod.io API reachable'
+    : keyError
+      ? "mod.io API unreachable — on a Cloudflare deploy this means MODIO_API_KEY isn't set"
+      : 'contacting mod.io…';
+  return (
+    <span className={`chip api${cls}`} title={title}>
+      <span className="dot" />
+      {label}
+    </span>
+  );
+}
+
 export default function App() {
   const hash = useHash();
   const { apiKey, gameId, setGameId, setKeyError, setKeyless, setSlot } =
@@ -30,7 +48,10 @@ export default function App() {
       const proxied = await probeServerKey().catch(() => false);
       if (dead) return;
       if (proxied) setKeyless(true);
-      if (!proxied && !apiKey) return;
+      if (!proxied && !apiKey) {
+        setKeyError('unreachable');
+        return;
+      }
       try {
         const id = await resolveGameId(apiKey);
         if (!dead) {
@@ -93,6 +114,7 @@ export default function App() {
         </a>
         <nav>
           <a href="#/new">New collection</a>
+          <ApiChip />
           <FoldersMenu />
         </nav>
       </header>
