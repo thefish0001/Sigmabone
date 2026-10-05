@@ -322,12 +322,38 @@ async function writeFileAt(
   await w.close();
 }
 
-export async function installMod(dir: DirLike, mod: ModioMod): Promise<string> {
+/** fetch a mod archive through the available proxy chain, verifying we
+ *  actually got a file — an SPA fallback would answer with HTML */
+async function fetchArchive(
+  url: string,
+  proxyBase = '',
+): Promise<Uint8Array | null> {
+  const candidates: string[] = [];
+  if (proxyBase) candidates.push(proxyBase + encodeURIComponent(url));
+  candidates.push('/api/proxy?url=' + encodeURIComponent(url));
+  candidates.push(url);
+  for (const u of candidates) {
+    try {
+      const r = await fetch(u);
+      const ct = r.headers.get('content-type') ?? '';
+      if (r.ok && !ct.includes('text/html'))
+        return new Uint8Array(await r.arrayBuffer());
+    } catch {
+      /* try next candidate */
+    }
+  }
+  return null;
+}
+
+export async function installMod(
+  dir: DirLike,
+  mod: ModioMod,
+  proxyBase = '',
+): Promise<string> {
   const url = mod.modfile?.download.binary_url;
   if (!url) throw new Error('No downloadable file for this mod');
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Download failed (HTTP ${res.status})`);
-  const buf = new Uint8Array(await res.arrayBuffer());
+  const buf = await fetchArchive(url, proxyBase);
+  if (!buf) throw new Error('Download blocked — try again or use ↓ zip');
   const raw = unzipSync(buf);
 
   const entries = Object.entries(raw)
@@ -411,29 +437,10 @@ export async function installTs(
   const ver = latest(pkg);
   if (!ver) throw new Error('No available version');
 
-  // candidate download URLs: custom proxy → same-origin Pages proxy → direct
-  const candidates: string[] = [];
-  if (proxyBase)
-    candidates.push(proxyBase + encodeURIComponent(ver.download_url));
-  candidates.push('/api/proxy?url=' + encodeURIComponent(ver.download_url));
-  candidates.push(ver.download_url);
-
-  let res: Response | null = null;
-  for (const u of candidates) {
-    try {
-      const r = await fetch(u);
-      if (r.ok) {
-        res = r;
-        break;
-      }
-    } catch {
-      /* try next candidate */
-    }
-  }
-  if (!res)
+  const buf = await fetchArchive(ver.download_url, proxyBase);
+  if (!buf)
     return { via: 'download', files: [], skipped: [], url: ver.download_url };
 
-  const buf = new Uint8Array(await res.arrayBuffer());
   const raw = unzipSync(buf);
   const entries = Object.entries(raw)
     .map(([name, data]) => ({

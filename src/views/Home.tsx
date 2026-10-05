@@ -1,40 +1,20 @@
 import { useEffect, useState } from 'react';
-import { useStore } from '../store';
-import { decodeCollection, encodeCollection } from '../lib/collection';
+import { encodeCollection, type Collection } from '../lib/collection';
 import { getShared } from '../lib/shared';
 import { fsSupported } from '../lib/fs';
 import { connectAny } from '../components';
 import CollectionView from './CollectionView';
 
+type Shared = Collection | 'down' | null;
+
 export default function Home() {
-  const { sdkScan, codeScan } = useStore();
-  const [link, setLink] = useState('');
-  const [err, setErr] = useState('');
+  const [shared, setShared] = useState<Shared>(null);
   const [busy, setBusy] = useState(false);
-  const [shared, setShared] = useState<string | null>(null);
-  const [sharedEmpty, setSharedEmpty] = useState(false);
 
   /* the group's shared collection — if it has mods it IS the homepage */
   useEffect(() => {
-    getShared().then((c) => {
-      if (!c) return;
-      if (c.m.length + c.t.length > 0) setShared(encodeCollection(c));
-      else setSharedEmpty(true);
-    });
+    getShared().then((c) => setShared(c ?? 'down'));
   }, []);
-
-  const open = (e: React.FormEvent) => {
-    e.preventDefault();
-    setErr('');
-    const m = link.match(/#?c=?([A-Za-z0-9_-]{6,})/);
-    const data = m ? m[1] : link.trim();
-    try {
-      decodeCollection(data);
-      location.hash = `#c=${data}`;
-    } catch {
-      setErr("That doesn't look like a collection link.");
-    }
-  };
 
   const connect = async () => {
     setBusy(true);
@@ -47,88 +27,45 @@ export default function Home() {
     }
   };
 
-  const folders = (sdkScan ? 1 : 0) + (codeScan ? 1 : 0);
+  if (shared === null)
+    return (
+      <div className="wrap">
+        <div className="list">
+          <div className="skel h1" />
+          {[0, 1, 2, 3].map((i) => (
+            <div className="skel row" key={i} />
+          ))}
+        </div>
+      </div>
+    );
 
-  /* shared collection takes over the homepage once it has mods */
-  if (shared) return <CollectionView data={shared} />;
+  /* populated shared collection → straight into the checklist */
+  if (shared !== 'down' && shared.m.length + shared.t.length > 0)
+    return <CollectionView data={encodeCollection(shared)} />;
+
+  const down = shared === 'down';
 
   return (
     <div className="wrap">
-      <section className="hero">
-        <h1>
-          Share BONELAB mods
-          <br />
-          <span className="grad">as a single link.</span>
-        </h1>
-        <p>
-          Build a collection — SDK mods <em>and</em> code mods — copy one URL.
-          Whoever opens it sees exactly what they're missing and installs the
-          rest straight into the right folders. No accounts, no server.
+      <div className="card empty-state home-empty">
+        <div className="kicker">Sigmabone</div>
+        <h1>{down ? 'Shared collection' : 'The collection is empty'}</h1>
+        <p className="muted">
+          {down
+            ? "The shared store isn't answering — this deployment has no KV binding. You can still build a collection below."
+            : 'Nothing here yet. Add mods and publish — everyone who opens this page gets the same list.'}
         </p>
-      </section>
-
-      <div className="grid cols3">
-        <div className="card lift">
-          <div className="kicker">Received a link?</div>
-          <h3>Open a collection</h3>
-          <form onSubmit={open}>
-            <input
-              className="input"
-              placeholder="paste sigmabone link…"
-              value={link}
-              onChange={(e) => setLink(e.target.value)}
-              spellCheck={false}
-            />
-            {err && <p className="err">{err}</p>}
-            <button className="btn primary" disabled={!link.trim()}>
-              Open
-            </button>
-          </form>
-        </div>
-
-        <div className="card lift">
-          <div className="kicker">Make your own</div>
-          <h3>Build a collection</h3>
-          <p className="muted">
-            Search mod.io &amp; Thunderstore or paste links, name it, copy the
-            share URL. The whole collection lives inside the link — nothing is
-            uploaded.
-          </p>
+        <div className="row center">
           <a className="btn primary" href="#/new">
-            New collection
+            Add mods
           </a>
-        </div>
-
-        <div className="card lift">
-          <div className="kicker">Your library</div>
-          <h3>Mod folders</h3>
-          {folders === 2 ? (
-            <p className="muted">
-              <span className="ok">Both connected</span> — SDK mods (
-              {sdkScan!.names.length} folders) and code mods (
-              {codeScan!.files.filter((f) => f.endsWith('.dll')).length} dlls).
-            </p>
-          ) : (
-            <p className="muted">
-              {fsSupported()
-                ? 'Two places: LocalLow\\…\\BONELAB\\Mods for SDK mods and your game folder for code mods. Pick a folder — Sigmabone detects which it is.'
-                : 'Your browser has no folder access — use Chrome or Edge for auto-detect and one-click install. Collections still work everywhere.'}
-            </p>
-          )}
           {fsSupported() && (
             <button className="btn ghost" onClick={connect} disabled={busy}>
-              {busy ? 'Scanning…' : folders ? 'Add another folder' : 'Choose folder'}
+              {busy ? 'Scanning…' : 'Link mod folders'}
             </button>
           )}
         </div>
       </div>
-
-      {sharedEmpty && (
-        <p className="hint muted">
-          Your group's shared collection is empty — open{' '}
-          <a href="#/new">Add mods</a> and hit “Publish to shared” to fill it.
-        </p>
-      )}
     </div>
   );
 }

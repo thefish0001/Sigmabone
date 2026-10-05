@@ -168,7 +168,7 @@ export default function CollectionView({ data }: { data: string }) {
     if (!sdk || !gameId) return curScan;
     try {
       const fresh = await getMod(apiKey, gameId, mod.id);
-      const folder = await installMod(sdk.handle, fresh);
+      const folder = await installMod(sdk.handle, fresh, proxy);
       const s = await recordInstall(sdk, curScan, fresh, folder);
       setScan('sdk', s);
       setState(`m${mod.id}`, 'done');
