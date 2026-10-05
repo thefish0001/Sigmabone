@@ -1,4 +1,6 @@
-const API_ROOT = 'https://api.mod.io/v1';
+/* mod.io deprecated api.mod.io in 2025 — per-game hosts on modapi.io are
+   the current API path (BONELAB = game 38) */
+const API_ROOT = 'https://g-38.modapi.io/v1';
 export const GAME_NAME_ID = 'bonelab';
 
 /* When deployed on Cloudflare Pages, /api/modio is a server-keyed proxy —

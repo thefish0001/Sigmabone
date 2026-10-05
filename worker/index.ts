@@ -1,7 +1,7 @@
 // Worker entry — serves the static site from ASSETS and handles two API
 // routes the CDNs can't serve directly:
 //
-//   GET /api/modio/*    → api.mod.io, injecting the server-side
+//   GET /api/modio/*    → g-38.modapi.io, injecting the server-side
 //                         MODIO_API_KEY secret so visitors stay keyless
 //   GET /api/proxy?url= → same-origin stream-through download proxy for
 //                         CORS-less CDNs (ccdn.thunderstore.io etc)
@@ -45,7 +45,7 @@ async function modio(
     );
   }
   const upstream = new URL(
-    `https://api.mod.io/v1/${reqUrl.pathname.slice('/api/modio/'.length)}`,
+    `https://g-38.modapi.io/v1/${reqUrl.pathname.slice('/api/modio/'.length)}`,
   );
   upstream.search = reqUrl.search;
   upstream.searchParams.set('api_key', env.MODIO_API_KEY);
